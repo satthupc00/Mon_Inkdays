@@ -352,3 +352,5 @@ mark{background:var(--hit);color:inherit;border-radius:4px;padding:0 1px}
 .app.calhidden .calhandle{left:6px}
 .app.calhidden .calhandle svg{transform:rotate(180deg)}
 .app:not(.wide):not(.droid) .brand-name{display:none}
+/* Điện thoại: nút B cố định ở góc dưới phải, ngay trên bàn phím (tránh đè thanh Cắt/Chép của Android) */
+.app:not(.desk) .boldpop{position:fixed;left:auto!important;top:auto!important;right:calc(16px + var(--sar));bottom:calc(16px + var(--sab) + var(--kb,0px));width:52px;height:52px;border-radius:16px;font-size:22px}
