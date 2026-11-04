@@ -354,3 +354,31 @@ mark{background:var(--hit);color:inherit;border-radius:4px;padding:0 1px}
 .app:not(.wide):not(.droid) .brand-name{display:none}
 /* Điện thoại: nút B cố định ở góc dưới phải, ngay trên bàn phím (tránh đè thanh Cắt/Chép của Android) */
 .app:not(.desk) .boldpop{position:fixed;left:auto!important;top:auto!important;right:calc(16px + var(--sar));bottom:calc(16px + var(--sab) + var(--kb,0px));width:52px;height:52px;border-radius:16px;font-size:22px}
+/* Điện thoại: nút mic nhập bằng giọng nói (góc dưới phải); nút "xuống cuối" nhích lên trên nó */
+.micbtn{position:absolute;right:calc(18px + var(--sar));bottom:16px;z-index:6;width:54px;height:54px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;
+  box-shadow:0 12px 24px -10px rgba(229,56,59,.75);transition:opacity .35s ease,transform .4s var(--spring)}
+.micbtn svg{width:24px;height:24px}
+.micbtn:active{transform:scale(.9)}
+.app.droid .tobottom{bottom:82px}
+.app:not(.wide)[data-mode=cal] .micbtn{bottom:78px}
+.app.editmode .micbtn{opacity:0;transform:translateY(12px) scale(.9);pointer-events:none}
+/* Lớp "Đang nghe…" */
+.voice{position:fixed;inset:0;z-index:95;background:rgba(46,42,43,.42);display:flex;align-items:flex-end;justify-content:center;animation:vIn .22s ease}
+.voice.out{opacity:0;transition:opacity .2s}
+@keyframes vIn{from{opacity:0}}
+.vbox{width:min(560px,100%);margin:0 12px calc(14px + var(--sab));background:var(--paper,#fffaf0);color:var(--ink,#2e2a2b);border-radius:22px;padding:22px 18px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 20px 50px -18px rgba(0,0,0,.5);animation:vUp .35s var(--spring)}
+@keyframes vUp{from{transform:translateY(40px)}}
+.vmic{position:relative;width:76px;height:76px;margin-bottom:10px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center}
+.vmic svg{width:34px;height:34px;position:relative}
+.vmic span{position:absolute;inset:0;border-radius:50%;background:var(--red);opacity:0}
+.voice.on .vmic span{animation:vPulse 1.6s ease-out infinite}
+.voice.on .vmic span+span{animation-delay:.8s}
+@keyframes vPulse{from{transform:scale(1);opacity:.45}to{transform:scale(1.9);opacity:0}}
+.vstate{font-size:13px;color:var(--muted)}
+.vtext{min-height:52px;max-height:40vh;overflow:auto;width:100%;font:400 21px/1.35 var(--hand);text-align:center;white-space:pre-wrap;word-break:break-word}
+.vtext:empty::before{content:'…';color:var(--muted)}
+.vbtns{display:flex;gap:10px;width:100%}
+.vbtns button{flex:1;height:46px;border-radius:14px;font-weight:800;font-size:15px}
+.vno{background:rgba(46,42,43,.08);color:inherit}
+.vok{background:var(--red);color:#fff}

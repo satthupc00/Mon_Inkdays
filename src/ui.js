@@ -3,6 +3,7 @@ import { label, addDay, keyOf, pad2, todayKey, parseK } from './dates.js';
 import store from './store.js';
 import { confirmBox } from './dialogs.js';
 import { plain, toHTML, fromDOM, htmlToRich } from './rich.js';
+import { listen, cap1 } from './voice.js';
 
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ZW = '\u200B'; // ký tự vô hình giữ chỗ cho con trỏ trong ô chữ trống
@@ -51,6 +52,7 @@ export class AppUI {
         <div class="pane calp"><div class="cal" data-cal></div></div>
       </div><div class="fscroll"><div class="thumb"></div><div class="bubble"></div></div><button class="tobottom" data-act="bottom" title="Xuống cuối" aria-label="Xuống cuối">${I.chev}</button>
       <button class="quick" data-act="quick" title="Nhảy tới hôm nay và viết luôn">${I.plus}Nhập nhanh</button>
+      ${platform === 'android' ? `<button type="button" class="micbtn" data-act="voice" title="Nói để ghi vào hôm nay" aria-label="Nhập bằng giọng nói">${I.mic}</button>` : ''}
       <button type="button" class="calhandle only-desk" data-act="cal" title="Thu gọn / mở lịch (Ctrl+L)" aria-label="Thu gọn / mở lịch">${I.l}</button>
       <button type="button" class="boldpop" title="In đậm (Ctrl+B)" aria-label="In đậm" hidden><b>B</b></button></div>
       <footer class="foot"><span></span><span class="credit">Created by Mondiro</span></footer>
@@ -471,6 +473,8 @@ export class AppUI {
 
   // Nút Back của Android: đóng lớp trên cùng, trả về false nếu không còn gì để đóng
   back() {
+    const v = document.querySelector('.voice:not(.out) .vno');
+    if (v) { v.click(); return true; }
     if (this.closeMenu()) return true;
     if (this.editing) { this.commitEdit(); return true; }
     if (this.open) { this.open = null; this.refresh(); return true; }
@@ -499,6 +503,7 @@ export class AppUI {
       else if (d.act === 'sync') { this.toast(b.title); if (!store.user) this.onSync(); }
       else if (d.act === 'upd') this.onUpdate?.();
       else if (d.act === 'quick') this.quickEntry();
+      else if (d.act === 'voice') this.voiceEntry();
       else if (d.act === 'cal') this.toggleCal();
       else if (d.act === 'bottom') this.flowP.scrollTo({ top: this.flowP.scrollHeight, behavior: 'smooth' });
     });
@@ -667,6 +672,35 @@ export class AppUI {
       setTimeout(() => e.classList.remove('pop'), 1500);
       setTimeout(() => this.startEdit(k), 300);
     }, this.wide ? 20 : 380);
+  }
+
+  // Nút mic (chỉ điện thoại): nói → chữ, chèn vào cuối ngày hôm nay
+  async voiceEntry() {
+    if (this.listening) return;
+    if (this.editing) this.commitEdit();
+    this.listening = true;
+    let said = '';
+    try { said = await listen(); } finally { this.listening = false; }
+    if (!said) return;
+    const k = todayKey(), y = +k.slice(0, 4);
+    const cur = (store.get(k)?.text || '').replace(/\u200B/g, '').replace(/\s+$/, '');
+    const sep = !cur ? '' : /[.!?…:;]$/.test(cur) ? ' ' : '. ';
+    said = cap1(said.replace(/\*/g, ''));
+    if (!/[.!?…]$/.test(said)) said += '.';
+    store.set(k, { text: cur + sep + said });
+    this.year = y;
+    this.extra.add(k);
+    this.open = null;
+    if (!this.wide) this.setMode('flow');
+    this.refresh();
+    setTimeout(() => {
+      const e = this.flowEl.querySelector(`.ent[data-k="${k}"]`);
+      if (!e) return;
+      e.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      e.classList.add('pop');
+      setTimeout(() => e.classList.remove('pop'), 1500);
+    }, this.wide ? 20 : 380);
+    this.toast('Đã thêm vào hôm nay');
   }
 
   // PC: thu gọn / mở lại cột Lịch, nhớ lựa chọn giữa các lần mở app

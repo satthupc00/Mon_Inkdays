@@ -8,6 +8,7 @@ export const I = {
   x: s('<path d="M6 6l12 12M18 6 6 18"/>'),
   flow: s('<path d="M5 6h14M5 11h14M5 16h9"/>'),
   cal: s('<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>'),
+  mic: s('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
   plus: s('<path d="M12 5v14M5 12h14"/>', 'fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"'),
   trash: s('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   up: s('<path d="M12 16V4m-5 5 5-5 5 5M4 20h16"/>'),
