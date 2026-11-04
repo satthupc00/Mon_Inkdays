@@ -26,8 +26,9 @@ export function listen({ onStatus } = {}) {
       if (done) return;
       done = true;
       clearTimeout(restartT); clearTimeout(idleT);
-      try { await SR.stop(); } catch { /* đã dừng */ }
-      try { await SR.removeAllListeners(); } catch { /* bỏ qua */ }
+      // Lưu ý: SR.stop() trên Android KHÔNG bao giờ trả kết quả → không được await (sẽ treo mãi)
+      SR.stop().catch(() => {});
+      setTimeout(() => SR.removeAllListeners().catch(() => {}), 300);
       if (latest) segs.push(latest);
       ov.classList.add('out');
       setTimeout(() => ov.remove(), 220);
@@ -66,6 +67,7 @@ export function listen({ onStatus } = {}) {
       let p = await SR.checkPermissions();
       if (p.speechRecognition !== 'granted') p = await SR.requestPermissions();
       if (p.speechRecognition !== 'granted') { setState('Cần cho phép dùng micro để nhập bằng giọng nói'); return; }
+      try { await SR.removeAllListeners(); } catch { /* bỏ qua */ }
       await SR.addListener('partialResults', d => { if (!done && d?.matches?.[0]) { latest = d.matches[0]; show(); } });
       await SR.addListener('listeningState', d => {
         if (done) return;
