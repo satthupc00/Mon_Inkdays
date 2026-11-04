@@ -52,7 +52,7 @@ export class AppUI {
         <div class="pane calp"><div class="cal" data-cal></div></div>
       </div><div class="fscroll"><div class="thumb"></div><div class="bubble"></div></div><button class="tobottom" data-act="bottom" title="Xuống cuối" aria-label="Xuống cuối">${I.chev}</button>
       <button class="quick" data-act="quick" title="Nhảy tới hôm nay và viết luôn">${I.plus}Nhập nhanh</button>
-      ${platform === 'android' ? `<button type="button" class="micbtn" data-act="voice" title="Nói để ghi vào hôm nay" aria-label="Nhập bằng giọng nói">${I.mic}</button>` : ''}
+      ${platform === 'android' ? `<button type="button" class="micbtn" title="Nói để điền chữ vào chỗ con trỏ" aria-label="Nhập bằng giọng nói">${I.mic}</button>` : ''}
       <button type="button" class="calhandle only-desk" data-act="cal" title="Thu gọn / mở lịch (Ctrl+L)" aria-label="Thu gọn / mở lịch">${I.l}</button>
       <button type="button" class="boldpop" title="In đậm (Ctrl+B)" aria-label="In đậm" hidden><b>B</b></button></div>
       <footer class="foot"><span></span><span class="credit">Created by Mondiro</span></footer>
@@ -476,8 +476,9 @@ export class AppUI {
     const v = document.querySelector('.voice:not(.out) .vno');
     if (v) { v.click(); return true; }
     if (this.closeMenu()) return true;
+    // Bảng chọn màu của ngày đang mở: Back = đóng bảng (giữ nguyên chế độ gõ)
+    if (this.open) { this.open = null; this.flowEl.querySelectorAll('.ent.open').forEach(e => e.classList.remove('open', 'below')); if (this.editing) this.restoreSel(); return true; }
     if (this.editing) { this.commitEdit(); return true; }
-    if (this.open) { this.open = null; this.refresh(); return true; }
     if (this.root.classList.contains('searching')) { this.toggleSearch(false); return true; }
     if (!this.wide && this.mode === 'cal') { this.setMode('flow'); return true; }
     return false;
@@ -560,6 +561,13 @@ export class AppUI {
       if (t) this.saveTxt(t);
       this.updateBold();
     });
+    const mb = this.$('.micbtn');
+    if (mb) {
+      mb.addEventListener('pointerdown', e => e.preventDefault());
+      mb.addEventListener('mousedown', e => e.preventDefault());
+      mb.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+      mb.addEventListener('pointerup', e => { e.preventDefault(); this.voiceEntry(); });
+    }
     R.addEventListener('keydown', ev => {
       if (!this.editing || !ev.target.classList?.contains('ents')) return;
       if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.commitEdit(); }
@@ -603,7 +611,7 @@ export class AppUI {
       if (!this.editing || !e.target.classList?.contains('ents')) return;
       setTimeout(() => {
         if (!this.editing) return;
-        const inside = n => n && (this.host?.contains(n) || n.closest?.('.boldpop,.scrim,.menu'));
+        const inside = n => n && (this.host?.contains(n) || n.closest?.('.boldpop,.micbtn,.voice,.scrim,.menu'));
         if (inside(document.activeElement) || inside(lastDown)) return;
         this.commitEdit();
       }, 250);
@@ -677,11 +685,30 @@ export class AppUI {
   // Nút mic (chỉ điện thoại): nói → chữ, chèn vào cuối ngày hôm nay
   async voiceEntry() {
     if (this.listening) return;
-    if (this.editing) this.commitEdit();
+    // Đang gõ (có nháy chuột): nhớ vị trí con trỏ để điền chữ vào đúng chỗ đó
+    const atK = this.editing, atR = this.savedRange?.cloneRange();
     this.listening = true;
     let said = '';
     try { said = await listen(); } finally { this.listening = false; }
-    if (!said) return;
+    if (!said) { if (this.editing) this.restoreSel(); return; }
+    said = said.replace(/\*/g, '');
+    if (atK && atR && this.host?.contains(atR.startContainer)) {
+      if (!this.editing) { this.root.classList.add('editmode'); this.setActive(atK); }
+      this.savedRange = atR;
+      this.restoreSel();
+      const t = this.txtOf(getSelection().anchorNode);
+      if (t) {
+        const [before, after] = this.textAround(t);
+        const b = before.replace(/[ \t]+$/, '');
+        if (!b.trim() || /[.!?…\n]$/.test(b)) said = cap1(said);
+        if (before && !/\s$/.test(before)) said = ' ' + said;
+        if (after && !/^[\s.,!?…:;)]/.test(after)) said += ' ';
+        document.execCommand('insertText', false, said);
+        this.saveTxt(t);
+        return;
+      }
+    }
+    if (this.editing) this.commitEdit();
     const k = todayKey(), y = +k.slice(0, 4);
     const cur = (store.get(k)?.text || '').replace(/\u200B/g, '').replace(/\s+$/, '');
     const sep = !cur ? '' : /[.!?…:;]$/.test(cur) ? ' ' : '. ';
