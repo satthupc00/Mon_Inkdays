@@ -11,6 +11,9 @@ const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // So khớp không phân biệt hoa thường (giữ dấu tiếng Việt)
 const norm = s => s.toLowerCase();
 
+// Ô tìm + ô thay thế (để trống ô thay thế = chỉ tìm)
+const findHTML = desk => `<label class="searchbar"${desk ? ' title="Tìm (Ctrl+F) · Enter: chỗ tiếp theo"' : ''}>${I.search}<input placeholder="Tìm…" data-q enterkeyhint="search"><span class="cnt" data-cnt></span><button type="button" class="nav" data-act="fprev" title="Chỗ trước (Shift+Enter)" aria-label="Chỗ trước">${I.chevUp}</button><button type="button" class="nav" data-act="fnext" title="Chỗ tiếp theo (Enter)" aria-label="Chỗ tiếp theo">${I.chevDown}</button>${desk ? '' : `<button type="button" class="x" data-act="clearq" aria-label="Xóa tìm kiếm">${I.x}</button>`}</label><div class="reprow">${I.swap}<input placeholder="Thay bằng…" title="Để trống = chỉ tìm" data-r enterkeyhint="done"><button type="button" class="rbtn" data-act="rep1" title="Thay chỗ đang chọn" disabled>Thay</button><button type="button" class="rbtn" data-act="repall" title="Thay tất cả trong năm" disabled>Thay hết</button></div>`;
+
 const STATUS = {
   local: 'Chỉ lưu trên máy',
   signedout: 'Chưa đăng nhập để đồng bộ',
@@ -29,6 +32,8 @@ export class AppUI {
     this.mode = 'flow';
     this.year = new Date().getFullYear();
     this.q = '';
+    this.rq = ''; // chữ thay thế
+    this.marks = []; this.cur = -1; // các chỗ tìm thấy (thẻ <mark>) + chỗ đang chọn
     this.open = null;
     this.extra = new Set(); // ngày vừa thêm bằng nút + nhưng chưa viết gì
     root.innerHTML = `<div class="app locked ${platform === 'desktop' ? 'desk' : ''} ${platform === 'android' ? 'droid' : ''}" data-mode="flow">
@@ -36,7 +41,7 @@ export class AppUI {
         <div class="brand"><img class="brand-icon" src="icon.svg" alt=""><div class="brand-name"><span><span class="m">Mon</span> <span class="a">Inkdays</span></span><span class="latest" hidden>latest</span></div></div>
         <div class="year"><button class="ibtn" data-y="-1" title="Năm trước" aria-label="Năm trước">${I.l}</button><b data-yl></b><button class="ibtn" data-y="1" title="Năm sau" aria-label="Năm sau">${I.r}</button></div>
         <span class="topgap"></span>
-        <label class="searchbar only-desk" title="Tìm kiếm (Ctrl+F)">${I.search}<input placeholder="Tìm từ khóa…" data-q enterkeyhint="search"><span class="cnt" data-cnt></span></label>
+        <div class="find only-desk">${findHTML(true)}</div>
         <button type="button" class="syncdot" data-act="sync" title="Đồng bộ" aria-label="Đồng bộ"><i></i></button>
         <button class="ibtn only-mob" data-act="search" title="Tìm kiếm" aria-label="Tìm kiếm">${I.search}</button>
         <button class="ibtn" data-act="menu" title="Thêm" aria-label="Menu">${I.more}</button>
@@ -44,13 +49,13 @@ export class AppUI {
       </header>
       <div data-banner></div>
       <div class="subbar">
-        <label class="searchbar">${I.search}<input placeholder="Tìm từ khóa…" data-q enterkeyhint="search"><span class="cnt" data-cnt></span><button class="x" data-act="clearq" aria-label="Xóa tìm kiếm">${I.x}</button></label>
+        <div class="find">${findHTML(false)}</div>
         <div class="seg"><span class="pill"></span><button data-m="flow" class="on">${I.flow}Dòng chảy</button><button data-m="cal">${I.cal}Lịch</button></div>
       </div>
       <div class="views"><div class="track">
         <div class="pane flowp"><div class="flow" data-flow></div></div>
         <div class="pane calp"><div class="cal" data-cal></div></div>
-      </div><div class="fscroll"><div class="thumb"></div><div class="bubble"></div></div><button class="tobottom" data-act="bottom" title="Xuống cuối" aria-label="Xuống cuối">${I.chev}</button>
+      </div><div class="ruler" aria-hidden="true"></div><div class="fscroll"><div class="thumb"></div><div class="bubble"></div></div><button class="tobottom" data-act="bottom" title="Xuống cuối" aria-label="Xuống cuối">${I.chev}</button>
       <button class="quick" data-act="quick" title="Nhảy tới hôm nay và viết luôn">${I.plus}Nhập nhanh</button>
       ${platform === 'android' ? `<button type="button" class="micbtn" title="Nói để điền chữ vào chỗ con trỏ" aria-label="Nhập bằng giọng nói">${I.mic}</button>` : ''}
       <button type="button" class="calhandle only-desk" data-act="cal" title="Thu gọn / mở lịch (Ctrl+L)" aria-label="Thu gọn / mở lịch">${I.l}</button>
@@ -62,7 +67,7 @@ export class AppUI {
     this.calEl = this.$('[data-cal]');
     this.flowP = this.$('.flowp');
     this.calP = this.$('.calp');
-    new ResizeObserver(() => { this.checkWide(); this.checkBottom(); this.syncScrollbar(false); }).observe(this.root);
+    new ResizeObserver(() => { this.checkWide(); this.checkBottom(); this.syncScrollbar(false); this.drawRuler(); }).observe(this.root);
     this.flowP.addEventListener('scroll', () => { this.checkBottom(); this.syncScrollbar(true); if (this.editing) this.updateBold(); }, { passive: true });
     // Bộ lọc SVG tạo hiệu ứng "giọt nước" cho các ô du lịch liền nhau trên lịch
     if (!document.getElementById('monml-goo')) document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="monml-goo"><feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></svg>');
@@ -188,9 +193,94 @@ export class AppUI {
     th.addEventListener('pointerup', end);
     th.addEventListener('pointercancel', end);
   }
-  updateCount() {
-    const n = this.q.trim() ? this.daysOfYear().filter(k => this.match(k)).length : 0;
-    this.$$('[data-cnt]').forEach(c => { c.textContent = this.q.trim() ? n + ' ngày' : ''; });
+  updateCount() { this.updateFind(); }
+  // ----- Tìm & thay thế -----
+  // Gom các chỗ tìm thấy, cập nhật bộ đếm "3/12", nút Thay và các vạch bên hông Dòng chảy
+  updateFind() {
+    const old = this.marks[this.cur];
+    this.marks = this.q.trim() ? [...this.flowEl.querySelectorAll('mark')] : [];
+    this.cur = old ? this.marks.indexOf(old) : -1;
+    if (this.cur < 0 && this._curPos != null && this.marks.length) this.cur = Math.min(this._curPos, this.marks.length - 1);
+    this.marks.forEach((m, i) => m.classList.toggle('cur', i === this.cur));
+    const n = this.marks.length, q = this.q.trim();
+    this.$$('[data-cnt]').forEach(c => { c.textContent = !q ? '' : !n ? '0' : this.cur >= 0 ? `${this.cur + 1}/${n}` : `${n}`; });
+    this.$$('.find').forEach(f => f.classList.toggle('has', !!q));
+    this.$$('[data-act=fprev],[data-act=fnext]').forEach(b => { b.disabled = !n; });
+    const canRep = !!(q && this.rq && n);
+    this.$$('[data-act=rep1]').forEach(b => { b.disabled = !canRep || this.cur < 0; });
+    this.$$('[data-act=repall]').forEach(b => { b.disabled = !canRep; });
+    this.drawRuler();
+  }
+  // Vạch bên hông: mỗi chỗ tìm thấy 1 vạch, đặt theo vị trí trong cả Dòng chảy; bấm vạch để nhảy tới
+  drawRuler() {
+    const r = this.$('.ruler');
+    if (!r) return;
+    if (!this.marks.length || !this.marks[0].isConnected) { r.innerHTML = ''; r.classList.remove('show'); return; }
+    const p = this.flowP, H = r.clientHeight || p.clientHeight, top0 = p.getBoundingClientRect().top - p.scrollTop;
+    const total = Math.max(p.scrollHeight, 1), seen = new Map();
+    this.marks.forEach((m, i) => {
+      const y = Math.max(0, Math.round(((m.getBoundingClientRect().top - top0) / total) * (H - 4)));
+      const key = Math.round(y / 8); // các vạch quá sát nhau thì gộp lại
+      if (!seen.has(key)) seen.set(key, { y, i, cur: false });
+      if (i === this.cur) seen.get(key).cur = true;
+    });
+    r.innerHTML = [...seen.values()].map(v => `<i data-i="${v.i}" class="${v.cur ? 'cur' : ''}" style="top:${v.y}px"></i>`).join('');
+    r.classList.add('show');
+  }
+  // Nhảy tới chỗ tìm thấy thứ i (vòng lại đầu/cuối)
+  gotoMatch(i) {
+    const n = this.marks.length;
+    if (!n) return;
+    this.cur = ((i % n) + n) % n;
+    this._curPos = this.cur;
+    const m = this.marks[this.cur];
+    this.stickBottom = false;
+    const p = this.flowP, pr = p.getBoundingClientRect(), mr = m.getBoundingClientRect();
+    const dy = mr.top - pr.top - p.clientHeight / 2 + mr.height / 2;
+    p.scrollTo({ top: p.scrollTop + dy, behavior: Math.abs(dy) < p.clientHeight * 1.5 ? 'smooth' : 'instant' });
+    this.updateFind();
+    m.classList.remove('blink'); void m.offsetWidth; m.classList.add('blink');
+  }
+  stepMatch(dir) {
+    if (!this.marks.length) return;
+    if (this.cur >= 0) return this.gotoMatch(this.cur + dir);
+    // chưa chọn chỗ nào: lấy chỗ gần nhất phía dưới (hoặc phía trên) chỗ đang xem
+    const top = this.flowP.getBoundingClientRect().top + 8;
+    const ys = this.marks.map(m => m.getBoundingClientRect().top);
+    let i = dir > 0 ? ys.findIndex(y => y >= top) : ys.findLastIndex(y => y < top);
+    if (i < 0) i = dir > 0 ? 0 : this.marks.length - 1;
+    this.gotoMatch(i);
+  }
+  // Thay chỗ đang chọn rồi tự sang chỗ kế tiếp
+  replaceOne() {
+    const m = this.marks[this.cur], q = this.q.trim();
+    if (!m || !q || !this.rq) return;
+    const t = m.closest('.txt'), k = t?.dataset.k;
+    if (!k) return;
+    const nth = [...t.querySelectorAll('mark')].indexOf(m);
+    let c = -1;
+    const text = (store.get(k)?.text || '').replace(new RegExp(reEsc(q), 'gi'), s => (++c === nth ? this.rq : s));
+    const pos = this.cur;
+    if (this.editing) this.commitEdit();
+    store.set(k, { text });
+    this.refresh();
+    this._curPos = pos;
+    if (this.marks.length) this.gotoMatch(Math.min(pos, this.marks.length - 1));
+    else { this.updateFind(); this.toast('Đã thay hết'); }
+  }
+  // Thay tất cả trong năm đang xem
+  async replaceAll() {
+    const q = this.q.trim(), rq = this.rq;
+    if (!q || !rq || !this.marks.length) return;
+    const re = () => new RegExp(reEsc(q), 'gi');
+    const todo = this.daysOfYear().map(k => [k, store.get(k)?.text || '']).filter(([, t]) => re().test(t));
+    const n = todo.reduce((a, [, t]) => a + t.match(re()).length, 0);
+    if (!(await confirmBox(`Thay ${n} chỗ "${q}" bằng "${rq}" trong năm ${this.year}?`, 'Thay hết'))) return;
+    if (this.editing) this.commitEdit();
+    todo.forEach(([k, t]) => store.set(k, { text: t.replace(re(), rq) }));
+    this.cur = -1; this._curPos = null;
+    this.refresh();
+    this.toast(`Đã thay ${n} chỗ`);
   }
   entHTML(k) {
     const e = store.get(k) || { text: '', mood: null };
@@ -452,8 +542,14 @@ export class AppUI {
   }
   setQuery(v) {
     this.q = v;
+    this.cur = -1; this._curPos = null;
     this.$$('[data-q]').forEach(i => { if (i.value !== v) i.value = v; });
     this.refresh();
+  }
+  setReplace(v) {
+    this.rq = v;
+    this.$$('[data-r]').forEach(i => { if (i.value !== v) i.value = v; });
+    this.updateFind();
   }
   toggleSearch(force) {
     const on = force ?? !this.root.classList.contains('searching');
@@ -499,6 +595,10 @@ export class AppUI {
       else if (d.del) { const k = d.del; confirmBox(`Xóa nội dung ngày ${label(k)}?`, 'Xóa').then(ok => { if (ok) { this.open = null; store.set(k, { text: '', mood: null }); } }); }
       else if (d.day) this.openDay(d.day);
       else if (d.act === 'search') this.toggleSearch();
+      else if (d.act === 'fnext') this.stepMatch(1);
+      else if (d.act === 'fprev') this.stepMatch(-1);
+      else if (d.act === 'rep1') this.replaceOne();
+      else if (d.act === 'repall') this.replaceAll();
       else if (d.act === 'clearq') { this.setQuery(''); this.$('.subbar [data-q]').focus(); }
       else if (d.act === 'menu') { if (!this.closeMenu()) this.onMenu(this); }
       else if (d.act === 'sync') { this.toast(b.title); if (!store.user) this.onSync(); }
@@ -511,6 +611,7 @@ export class AppUI {
     R.addEventListener('input', ev => {
       const t = ev.target;
       if (t.dataset.q !== undefined) { this.setQuery(t.value); return; }
+      if (t.dataset.r !== undefined) { this.setReplace(t.value); return; }
       if (this.editing && t.classList.contains('ents')) {
         const sel = getSelection();
         const ent = sel.rangeCount && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement)?.closest('.ent');
@@ -568,6 +669,16 @@ export class AppUI {
       mb.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
       mb.addEventListener('pointerup', e => { e.preventDefault(); this.voiceEntry(); });
     }
+    // Enter trong ô tìm = chỗ tiếp theo (Shift+Enter = chỗ trước); Enter trong ô thay = Thay
+    R.addEventListener('keydown', ev => {
+      if (ev.key !== 'Enter' || ev.isComposing) return;
+      if (ev.target.dataset?.q !== undefined) { ev.preventDefault(); this.stepMatch(ev.shiftKey ? -1 : 1); }
+      else if (ev.target.dataset?.r !== undefined) { ev.preventDefault(); if (this.rq && this.cur >= 0) this.replaceOne(); else this.stepMatch(1); }
+    });
+    // Bấm vạch bên hông → tới chỗ đó
+    this.$('.ruler').addEventListener('click', ev => { const i = ev.target.closest('i')?.dataset.i; if (i != null) this.gotoMatch(+i); });
+    // Nút lên/xuống/Thay không lấy mất bàn phím của ô tìm
+    this.$$('.find .nav, .find .rbtn').forEach(b => b.addEventListener('mousedown', e => e.preventDefault()));
     R.addEventListener('keydown', ev => {
       if (!this.editing || !ev.target.classList?.contains('ents')) return;
       if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.commitEdit(); }
@@ -632,7 +743,7 @@ export class AppUI {
       if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'l' && this.platform === 'desktop') { ev.preventDefault(); this.toggleCal(); }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'f') {
         ev.preventDefault();
-        const i = this.$('.app.desk.wide .searchbar.only-desk input') || (this.toggleSearch(true), null);
+        const i = this.$('.app.desk.wide .find.only-desk [data-q]') || (this.toggleSearch(true), null);
         i?.focus(); i?.select();
       } else if (ev.key === 'Escape') {
         if (!this.closeMenu() && !this.editing && this.q) this.setQuery('');

@@ -70,8 +70,9 @@ input,textarea{font:inherit;color:inherit}
 .banner button[disabled]{opacity:.6}
 
 .subbar{padding:10px calc(14px + var(--sar)) 0 calc(14px + var(--sal));display:flex;flex-direction:column;gap:10px;flex:0 0 auto}
-.subbar .searchbar{border:1px solid var(--line);display:none}
-.app.searching .subbar .searchbar{display:flex;animation:drop .3s var(--spring)}
+.subbar .find{display:none;flex-direction:column;gap:8px}
+.subbar .searchbar,.subbar .reprow{border:1px solid var(--line)}
+.app.searching .subbar .find{display:flex;animation:drop .3s var(--spring)}
 @keyframes drop{from{opacity:0;transform:translateY(-8px)}}
 
 .seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:#F4E9DE;border-radius:14px;padding:4px;user-select:none}
@@ -284,7 +285,7 @@ mark{background:var(--hit);color:inherit;border-radius:4px;padding:0 1px}
 .app.desk.wide .only-desk{display:flex}
 .app.desk.wide .only-mob{display:none}
 .app.desk.wide .subbar{display:none}
-.app.desk .searchbar.only-desk{width:min(300px,30vw)}
+.app.desk .find.only-desk{width:min(340px,32vw);position:relative;flex-direction:column}
 .app.desk.wide .cell,.app.desk.wide .goo i{aspect-ratio:auto;height:40px}
 
 /* ===== Màn khóa ===== */
@@ -384,3 +385,32 @@ mark{background:var(--hit);color:inherit;border-radius:4px;padding:0 1px}
 .vbtns button{flex:1;height:46px;border-radius:14px;font-weight:800;font-size:15px}
 .vno{background:rgba(46,42,43,.08);color:inherit}
 .vok{background:var(--red);color:#fff}
+/* ===== Tìm & thay thế ===== */
+.searchbar{padding:0 6px 0 12px;gap:6px}
+.searchbar .nav{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink);flex:0 0 auto}
+.searchbar .nav svg{width:18px;height:18px;color:inherit}
+.searchbar .nav:hover:not(:disabled){background:var(--cell)}
+.searchbar .nav:disabled{opacity:.3}
+.find:not(.has) .searchbar .nav{display:none}
+.reprow{display:flex;align-items:center;gap:6px;background:#fff;border-radius:12px;padding:0 6px 0 12px;height:40px;color:var(--ink);min-width:0}
+.reprow svg{width:18px;height:18px;color:var(--muted);flex:0 0 auto}
+.reprow input{border:0;outline:0;background:none;flex:1;min-width:0}
+.rbtn{height:30px;padding:0 11px;border-radius:9px;background:var(--red);color:#fff;font-weight:800;font-size:13px;white-space:nowrap;flex:0 0 auto;transition:opacity .2s,transform .2s var(--spring)}
+.rbtn:active:not(:disabled){transform:scale(.92)}
+.rbtn:disabled{background:var(--cell);color:var(--muted)}
+/* PC: ô thay thế thả xuống ngay dưới ô tìm trên thanh tiêu đề */
+.find.only-desk .reprow{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;box-shadow:0 14px 30px -14px rgba(0,0,0,.45);border:1px solid var(--line);display:none}
+.find.only-desk:focus-within .reprow,.find.only-desk.has .reprow{display:flex;animation:drop .25s var(--spring)}
+/* chỗ đang chọn */
+mark.cur{background:#FFB547;box-shadow:0 0 0 2px #FFB547}
+mark.blink{animation:mBlink .9s ease}
+@keyframes mBlink{0%,60%{box-shadow:0 0 0 5px rgba(229,56,59,.55)}100%{box-shadow:0 0 0 2px #FFB547}}
+/* Vạch bên hông Dòng chảy: mỗi vạch = 1 chỗ tìm thấy, bấm để tới */
+.ruler{position:absolute;top:6px;bottom:6px;right:calc(1px + var(--sar));width:14px;z-index:9;pointer-events:none;opacity:0;transition:opacity .3s}
+.ruler.show{opacity:1}
+.ruler i{position:absolute;right:2px;width:10px;height:4px;border-radius:2px;background:#F2B705;pointer-events:auto;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.7)}
+.ruler i::before{content:"";position:absolute;inset:-3px -4px}
+.ruler i.cur{background:var(--red);width:14px;right:0;height:5px}
+.ruler i:hover{background:var(--red)}
+.app:not(.wide)[data-mode=cal] .ruler{display:none}
+.electron .top .reprow,.electron .top .find{-webkit-app-region:no-drag}
