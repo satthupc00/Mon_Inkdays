@@ -518,9 +518,18 @@ export class AppUI {
     return [clean(b.toString()) + (b.cloneContents().querySelector?.('br') ? '\n' : ''), clean(a.toString()) + (a.cloneContents().querySelector?.('br') ? '\n' : '')];
   }
   // Nút B chỉ hiện khi đang bôi đen chữ trong 1 ngày
+  // Nút B chỉ hiện sau khi đã bôi đen xong: PC đợi 0,5 giây sau khi thả chuột, điện thoại đợi 0,2 giây
   updateBold() {
     const pop = this.$('.boldpop'), sel = getSelection();
-    if (!this.editing || !sel.rangeCount || sel.isCollapsed) { pop.hidden = true; return; }
+    const ok = this.editing && sel.rangeCount && !sel.isCollapsed && (() => { const r = sel.getRangeAt(0), a = this.txtOf(r.startContainer); return a && a === this.txtOf(r.endContainer); })();
+    clearTimeout(this._boldT);
+    if (!ok || this._ptrDown) { pop.hidden = true; return; }
+    if (!pop.hidden) return this.placeBold(); // đang hiện (vd cuộn trang, vừa bấm B): chỉ đặt lại vị trí
+    this._boldT = setTimeout(() => this.placeBold(), this.platform === 'desktop' ? 500 : 200);
+  }
+  placeBold() {
+    const pop = this.$('.boldpop'), sel = getSelection();
+    if (!this.editing || !sel.rangeCount || sel.isCollapsed || this._ptrDown) { pop.hidden = true; return; }
     const r = sel.getRangeAt(0), a = this.txtOf(r.startContainer), b = this.txtOf(r.endContainer);
     if (!a || a !== b) { pop.hidden = true; return; }
     pop.hidden = false;
@@ -657,6 +666,11 @@ export class AppUI {
       }
       this.updateBold();
     });
+    // Đang giữ chuột / ngón tay (đang kéo bôi đen) thì chưa hiện nút B
+    document.addEventListener('pointerdown', e => { if (this.host?.contains(e.target)) { this._ptrDown = true; this.$('.boldpop').hidden = true; } }, true);
+    const up = () => { if (this._ptrDown) { this._ptrDown = false; this.updateBold(); } };
+    document.addEventListener('pointerup', up, true);
+    document.addEventListener('pointercancel', up, true);
     // Nút B, ✓ không lấy mất con trỏ/vùng chọn
     const bp = this.$('.boldpop');
     bp.addEventListener('pointerdown', e => e.preventDefault());

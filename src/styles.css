@@ -1,5 +1,7 @@
 @import '@fontsource-variable/nunito/index.css';
 @import '@fontsource/patrick-hand/index.css';
+@import '@fontsource/arimo/400.css';
+@import '@fontsource/arimo/700.css';
 
 :root{
   --paper:#FFF8F0; --paper-2:#FDF4EB; --card:#FFFFFF; --ink:#3B302C; --muted:#8C7F78; --line:#F0E4DA;
@@ -101,7 +103,10 @@ input,textarea{font:inherit;color:inherit}
 .flow-paper{background:var(--card);border-radius:var(--r);padding:16px 18px 12px;box-shadow:0 1px 0 var(--line),0 8px 24px -16px rgba(80,40,20,.25);max-width:860px;margin:0 auto}
 .ym{font:400 24px var(--hand);color:var(--muted);margin:0 0 6px;user-select:none}
 .empty-year{color:var(--muted);font-size:14px;margin:4px 0 12px}
-.ent{position:relative;margin:0 -18px;font-size:16px;line-height:1.6;padding:6px 18px;transition:background .3s}
+.ent{position:relative;margin:0 -18px;font-size:17px;line-height:1.7;padding:6px 18px;transition:background .3s}
+/* Chữ Dòng chảy: kiểu báo (Arial trên Windows; Arimo — bản giống hệt Arial — đóng gói sẵn cho Android) */
+.ent .txt{font-family:Arial,Arimo,'Liberation Sans',Helvetica,sans-serif;letter-spacing:0}
+.ent:not(.pos):not(.neg):not(.trip) .txt{color:#222}
 .ent.empty{padding-top:4px;padding-bottom:4px}
 .ent.sat{background:#FFF6D8}
 .ent.sun{background:#FFEEF2}
@@ -109,7 +114,7 @@ input,textarea{font:inherit;color:inherit}
 .ent.neg .txt{color:#6E4A3A}
 .ent.trip .date{color:var(--trip-ink);background:var(--trip)}
 .ent.trip .txt{color:var(--trip-ink)}
-.txt b{font-weight:800}
+.txt b{font-weight:700}
 .flow{touch-action:manipulation}
 .ent.editing{background:#FDFCFF;box-shadow:inset 0 0 0 2px #D9D2F7}
 .ent.editing .txt{display:inline;min-width:0;cursor:text;caret-color:var(--red)}
