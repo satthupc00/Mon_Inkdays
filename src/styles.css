@@ -414,3 +414,6 @@ mark.blink{animation:mBlink .9s ease}
 .ruler i:hover{background:var(--red)}
 .app:not(.wide)[data-mode=cal] .ruler{display:none}
 .electron .top .reprow,.electron .top .find{-webkit-app-region:no-drag}
+/* Nút x: PC chỉ hiện khi đã gõ chữ vào ô tìm hoặc ô thay thế */
+.find.only-desk:not(.typed) .searchbar .x{display:none}
+.searchbar .x:hover{background:var(--cell);color:var(--red)}

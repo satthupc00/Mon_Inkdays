@@ -12,7 +12,7 @@ const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const norm = s => s.toLowerCase();
 
 // Ô tìm + ô thay thế (để trống ô thay thế = chỉ tìm)
-const findHTML = desk => `<label class="searchbar"${desk ? ' title="Tìm (Ctrl+F) · Enter: chỗ tiếp theo"' : ''}>${I.search}<input placeholder="Tìm…" data-q enterkeyhint="search"><span class="cnt" data-cnt></span><button type="button" class="nav" data-act="fprev" title="Chỗ trước (Shift+Enter)" aria-label="Chỗ trước">${I.chevUp}</button><button type="button" class="nav" data-act="fnext" title="Chỗ tiếp theo (Enter)" aria-label="Chỗ tiếp theo">${I.chevDown}</button>${desk ? '' : `<button type="button" class="x" data-act="clearq" aria-label="Xóa tìm kiếm">${I.x}</button>`}</label><div class="reprow">${I.swap}<input placeholder="Thay bằng…" title="Để trống = chỉ tìm" data-r enterkeyhint="done"><button type="button" class="rbtn" data-act="rep1" title="Thay chỗ đang chọn" disabled>Thay</button><button type="button" class="rbtn" data-act="repall" title="Thay tất cả trong năm" disabled>Thay hết</button></div>`;
+const findHTML = desk => `<label class="searchbar"${desk ? ' title="Tìm (Ctrl+F) · Enter: chỗ tiếp theo"' : ''}>${I.search}<input placeholder="Tìm…" data-q enterkeyhint="search"><span class="cnt" data-cnt></span><button type="button" class="nav" data-act="fprev" title="Chỗ trước (Shift+Enter)" aria-label="Chỗ trước">${I.chevUp}</button><button type="button" class="nav" data-act="fnext" title="Chỗ tiếp theo (Enter)" aria-label="Chỗ tiếp theo">${I.chevDown}</button><button type="button" class="x" data-act="clearq" title="Xóa hết, đóng tìm kiếm (Esc)" aria-label="Xóa tìm kiếm">${I.x}</button></label><div class="reprow">${I.swap}<input placeholder="Thay bằng…" title="Để trống = chỉ tìm" data-r enterkeyhint="done"><button type="button" class="rbtn" data-act="rep1" title="Thay chỗ đang chọn" disabled>Thay</button><button type="button" class="rbtn" data-act="repall" title="Thay tất cả trong năm" disabled>Thay hết</button></div>`;
 
 const STATUS = {
   local: 'Chỉ lưu trên máy',
@@ -204,7 +204,7 @@ export class AppUI {
     this.marks.forEach((m, i) => m.classList.toggle('cur', i === this.cur));
     const n = this.marks.length, q = this.q.trim();
     this.$$('[data-cnt]').forEach(c => { c.textContent = !q ? '' : !n ? '0' : this.cur >= 0 ? `${this.cur + 1}/${n}` : `${n}`; });
-    this.$$('.find').forEach(f => f.classList.toggle('has', !!q));
+    this.$$('.find').forEach(f => { f.classList.toggle('has', !!q); f.classList.toggle('typed', !!(q || this.rq)); });
     this.$$('[data-act=fprev],[data-act=fnext]').forEach(b => { b.disabled = !n; });
     const canRep = !!(q && this.rq && n);
     this.$$('[data-act=rep1]').forEach(b => { b.disabled = !canRep || this.cur < 0; });
@@ -556,7 +556,15 @@ export class AppUI {
     this.root.classList.toggle('searching', on);
     this.$('[data-act=search]').classList.toggle('on', on);
     if (on) setTimeout(() => this.$('.subbar [data-q]').focus(), 50);
-    else if (this.q) this.setQuery('');
+    else { if (this.rq) this.setReplace(''); if (this.q) this.setQuery(''); }
+  }
+  // Nút x: xoá chữ ở cả ô tìm và ô thay thế, thu ô tìm lại như lúc chưa gõ gì
+  clearFind() {
+    const a = document.activeElement;
+    if (a?.matches?.('[data-q],[data-r]')) a.blur();
+    if (this.rq) this.setReplace('');
+    if (this.q) this.setQuery(''); else this.updateFind();
+    if (this.root.classList.contains('searching')) this.toggleSearch(false);
   }
   closeMenu() { const m = this.$('.menu'); if (m) { m.remove(); return true; } return false; }
   toast(t) {
@@ -599,7 +607,7 @@ export class AppUI {
       else if (d.act === 'fprev') this.stepMatch(-1);
       else if (d.act === 'rep1') this.replaceOne();
       else if (d.act === 'repall') this.replaceAll();
-      else if (d.act === 'clearq') { this.setQuery(''); this.$('.subbar [data-q]').focus(); }
+      else if (d.act === 'clearq') this.clearFind();
       else if (d.act === 'menu') { if (!this.closeMenu()) this.onMenu(this); }
       else if (d.act === 'sync') { this.toast(b.title); if (!store.user) this.onSync(); }
       else if (d.act === 'upd') this.onUpdate?.();
@@ -671,6 +679,7 @@ export class AppUI {
     }
     // Enter trong ô tìm = chỗ tiếp theo (Shift+Enter = chỗ trước); Enter trong ô thay = Thay
     R.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape' && ev.target.matches?.('[data-q],[data-r]')) { ev.preventDefault(); ev.stopPropagation(); this.clearFind(); return; }
       if (ev.key !== 'Enter' || ev.isComposing) return;
       if (ev.target.dataset?.q !== undefined) { ev.preventDefault(); this.stepMatch(ev.shiftKey ? -1 : 1); }
       else if (ev.target.dataset?.r !== undefined) { ev.preventDefault(); if (this.rq && this.cur >= 0) this.replaceOne(); else this.stepMatch(1); }
